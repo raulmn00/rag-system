@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-core"
+version = "0.1.0"
+description = "Domain logic for a hybrid-retrieval RAG pipeline (chunking, embeddings, retrieval, generation). No web framework — meant to be consumed by a separate transport layer."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Raul Mariaci Neto" }]
+license = { text = "MIT" }
+dependencies = [
+    "openai>=1.50.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    "rank-bm25>=0.2.2",
+    "tiktoken>=0.7.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+# Ragas + datasets pulled in only by eval/ragas_eval.py — keeping them
+# out of the default install keeps a fresh checkout small.
+eval = [
+    "ragas>=0.2.0",
+    "datasets>=2.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+# Only the rag_core package is part of the install. eval/, tests/, and
+# data/ are sibling directories at the repo level, not part of the
+# wheel.
+include = ["rag_core*"]
+exclude = ["eval*", "tests*", "data*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

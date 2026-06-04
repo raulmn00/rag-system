@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-backend"
+version = "0.1.0"
+description = "FastAPI transport layer over rag-core. Holds every web dependency (fastapi, uvicorn, python-multipart) so rag-core stays framework-agnostic."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Raul Mariaci Neto" }]
+license = { text = "MIT" }
+# rag-core is installed editably from a sibling path — see the root
+# README. We deliberately do NOT list it as a name-based dependency
+# here because it's not on PyPI; the editable install order is:
+#     pip install -e ./rag-core
+#     pip install -e ./backend
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.0.0",
+    "python-multipart>=0.0.20",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
