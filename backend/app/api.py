@@ -14,7 +14,7 @@ config.require("OPENAI_API_KEY")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import ask, health, upload
+from .routes import ask, evaluate, health, upload
 
 
 app = FastAPI(title="RAG System", version="1.0.0")
@@ -28,3 +28,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(ask.router)
 app.include_router(upload.router)
+app.include_router(evaluate.router)
