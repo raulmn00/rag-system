@@ -1,160 +1,134 @@
-# RAG System — Chat with your docs, with evaluation
+# RAG System — Monorepo
 
-A retrieval-augmented generation system that answers questions over a document
-collection **with citations**, built to make every stage of the RAG pipeline
-explicit: chunking, embeddings, hybrid retrieval, cross-encoder re-ranking,
-grounded generation, and — the part most demos skip — a **retrieval evaluation
-harness** that quantifies the contribution of each stage.
+A retrieval-augmented generation system that answers questions over a
+document collection **with citations**, built to make every stage of
+the RAG pipeline explicit: chunking, embeddings, hybrid retrieval,
+cross-encoder re-ranking, grounded generation, and a quantitative
+evaluation harness.
 
-## Why this project
-
-Anyone can call `index.query()`. This project demonstrates understanding of the
-decisions that actually determine RAG quality, and backs them with numbers:
-
-- **Chunking** with token-aware windows + overlap, and the trade-offs documented.
-- **Hybrid retrieval**: dense vector search (semantic) fused with BM25 (keyword)
-  via Reciprocal Rank Fusion — because embeddings miss exact terms and keywords
-  miss paraphrase.
-- **Cross-encoder re-ranking** of the candidate shortlist (the retrieve-then-
-  rerank pattern).
-- **Grounded generation** that answers only from retrieved context and cites
-  passage numbers, reducing hallucination.
-- **Evaluation** of retrieval quality (Hit Rate, MRR, Recall@k) comparing three
-  configurations, so improvements are measured, not asserted.
-
-## Architecture
+This repo is a **monorepo** with three apps:
 
 ```
-INGEST (offline)                          QUERY (online)
-─────────────────                         ──────────────
-docs/*.md,*.txt                           user question
-     │ chunk (token windows + overlap)         │ embed
-     ▼                                          ▼
-  embeddings (OpenAI text-embedding-3-small)  ┌──────────────────────────┐
-     │                                        │ 1. semantic (dense)      │
-     ▼                                        │ 2. BM25 (keyword)        │
-  ChromaDB (persistent, cosine)  ───────────► │ 3. fuse (RRF)            │
-                                              │ 4. cross-encoder re-rank │
-                                              └────────────┬─────────────┘
-                                                           ▼  top-k chunks
-                                              generation (cites [1],[2],...)
-                                                           ▼
-                                                  grounded answer + sources
+.
+├── rag-core/     domain logic — chunking, embeddings, retrieval,
+│                 generation, the pipeline. Importable Python package
+│                 (`rag_core`). No web framework. No HTTP.
+├── backend/     FastAPI transport layer. Depends on rag-core via
+│                 editable install. Holds every web dependency
+│                 (fastapi, uvicorn, python-multipart) so rag-core
+│                 stays framework-agnostic.
+└── frontend/    React + TypeScript SPA (added later in development).
 ```
 
-## Module map
+Separating these three lets the same domain code be consumed by
+different transports — a CLI, an HTTP API, a notebook — without
+dragging FastAPI around. It also keeps the dependency surface honest:
+`pip install rag-core` won't pull uvicorn; `npm install` in
+`frontend/` doesn't pull Python.
 
-| File | Responsibility |
-|------|----------------|
-| `src/chunking.py` | Token-aware chunking with overlap |
-| `src/embeddings.py` | OpenAI embeddings (batch + query) |
-| `src/vector_store.py` | ChromaDB persistence + vector query |
-| `src/fusion.py` | Reciprocal Rank Fusion (pure, testable) |
-| `src/retriever.py` | Hybrid search + cross-encoder re-ranking |
-| `src/generation.py` | Cited, context-only answer generation |
-| `src/pipeline.py` | Orchestrates retrieve → generate |
-| `src/ingest.py` | CLI: read → chunk → embed → store |
-| `src/api.py` | FastAPI endpoint `/ask` |
-| `eval/metrics.py` | Hit Rate / MRR / Recall@k (pure functions) |
-| `eval/run_eval.py` | Compares retriever configs on a gold set |
-| `eval/ragas_eval.py` | LLM-judged answer quality (faithfulness, relevancy, ...) |
+## Setup
 
-## Quickstart
+Requires Python 3.10+. Set `OPENAI_API_KEY` in the repo-root `.env`
+(see `.env.example`).
 
 ```bash
-pip install -r requirements.txt
-export OPENAI_API_KEY=sk-...
+# 1. Make a virtualenv and activate it
+python3 -m venv .venv
+source .venv/bin/activate
 
-# 1. Ingest the sample docs (or drop your own .md/.txt into data/docs/)
-python -m src.ingest data/docs
+# 2. Install rag-core first, then the backend that depends on it.
+#    Order matters because the backend imports rag_core; both are
+#    editable so changes take effect without re-installing.
+pip install -e ./rag-core
+pip install -e ./backend
 
-# 2. Ask a question (API)
-uvicorn src.api:app --reload
-curl -X POST localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is multi-head attention?"}'
-
-# 3. Evaluate retrieval — prints the comparison table below
-python -m eval.run_eval
+# 3. Optional: dev tooling and the heavier Ragas-based eval extras.
+pip install -e "./rag-core[dev]"          # pytest
+pip install -e "./rag-core[eval]"         # ragas + datasets
 ```
 
-## Evaluation
+`python-dotenv` loads the `.env` from the repo root on package import
+(see `rag_core/config.py`), so `OPENAI_API_KEY` is available to every
+entry point without a manual `export`.
 
-The system is evaluated on **two complementary fronts**, because a fluent answer
-built on the wrong context is still wrong, and perfect retrieval wasted by a bad
-prompt is also wrong.
+## Running each part
 
-### 1. Retrieval quality — `eval/run_eval.py` (no LLM calls)
-
-Runs three retriever configurations over a labeled gold set (`eval/gold.json`)
-and reports retrieval metrics at k=5:
-
-```
-config                   hit_rate@5         mrr@5      recall@5
-------------------------------------------------------------------
-semantic_only                 ...            ...           ...
-hybrid                        ...            ...           ...
-hybrid_plus_rerank            ...            ...           ...
-```
-
-Run it after ingestion and paste your real numbers here. The expected story —
-and the thing to talk through in an interview — is that adding keyword fusion
-lifts recall (exact-term questions get found), and adding the cross-encoder
-re-ranker lifts MRR (the right chunk moves to the top).
-
-### 2. Answer quality — `eval/ragas_eval.py` (LLM-judged, via Ragas)
-
-Measures the *generated answer*, not just retrieval, on four metrics:
-
-- **faithfulness** — is every claim in the answer supported by the retrieved
-  context? (the direct hallucination measure)
-- **answer_relevancy** — does the answer actually address the question?
-- **context_precision** — are the retrieved chunks relevant and well-ordered?
-- **context_recall** — does the retrieved context cover the reference answer?
-  (uses the `ground_truth` field in `eval/gold.json`)
+### Ingest the sample corpus
 
 ```bash
-pip install ragas datasets        # optional extras
-export OPENAI_API_KEY=sk-...
-python -m eval.ragas_eval
+cd rag-core
+python -m rag_core.ingest data/docs
 ```
 
-This one **does** call the judge LLM several times per question (a few cents on
-the 8-item sample set). Flip the `use_keyword` / `use_rerank` flags in
-`build_samples` to measure how much faithfulness depends on each retrieval
-stage — e.g. showing faithfulness drops when re-ranking is off is a strong,
-concrete result to present.
+Reads `.md` / `.txt` files, chunks them, embeds in batches, and stores
+in `data/chroma/` (persistent on disk, gitignored).
 
-## Sample data
+### Backend (FastAPI)
 
-`data/docs/` ships with two original explainer documents (the Transformer
-architecture and RAG itself) so the demo works immediately. For a richer demo,
-add real papers as `.txt`/`.md` — e.g. export arXiv papers — and re-run
-ingestion. The gold set targets document-level relevance, so it stays valid as
-you change chunking parameters.
+```bash
+cd rag-core
+uvicorn app.api:app --reload --port 8000
+```
 
-## Design decisions & trade-offs
+Run from `rag-core/` so the default relative paths (`data/chroma`,
+`data/docs`) resolve correctly. The `app` package is importable from
+anywhere thanks to the editable install — uvicorn finds it via the
+Python path.
 
-- **ChromaDB over a hosted vector DB**: runs in-process with on-disk
-  persistence, nothing to provision for a demo. Production swap: Qdrant or
-  pgvector — only `vector_store.py` changes.
-- **RRF over weighted score fusion**: no score-scale tuning between cosine and
-  BM25; combines on rank alone.
-- **Retrieve-then-rerank**: the cross-encoder is accurate but too slow for the
-  whole corpus, so it runs only on the ~20-candidate shortlist.
-- **Document-level eval labels**: stable across chunking changes, so the harness
-  keeps working as you tune chunk size/overlap.
+Endpoints:
+
+- `GET /` — health check.
+- `POST /ask` — `{ question, use_keyword, use_rerank, top_k }` →
+  `{ answer, sources[] }`.
+
+### Evaluation
+
+```bash
+cd rag-core
+python -m eval.run_eval                   # retrieval metrics, no extra cost
+python -m eval.ragas_eval                 # LLM-judged answer quality (needs `eval` extra)
+```
+
+### Frontend
+
+Added in a later step. Will live in `frontend/` as a Vite + React + TS
+project. Will read `VITE_API_URL` for the backend's base URL.
+
+### Container (backend only)
+
+```bash
+# Build with the REPO ROOT as the context so both packages get copied.
+docker build -f backend/Dockerfile -t rag-backend .
+docker run --rm -p 8000:8000 --env-file .env rag-backend
+```
 
 ## Tests
 
 ```bash
+cd rag-core
 pytest tests/ -v
 ```
 
-Covers chunking, rank fusion, and all retrieval metrics — pure logic, no API
-calls or model downloads.
+Tests cover the pure parts (chunking, fusion, metrics) — no API key,
+no model downloads, no network. Run in well under a second.
 
-## Tech stack
+## What lives where, briefly
 
-Python · FastAPI · OpenAI embeddings · ChromaDB · rank-bm25 ·
-sentence-transformers (cross-encoder) · tiktoken
+| File | What it is | Why it's there |
+|---|---|---|
+| `rag-core/rag_core/chunking.py` | Token-aware chunker | tiktoken windows + overlap |
+| `rag-core/rag_core/embeddings.py` | OpenAI embedding client | One method per direction (docs, query) |
+| `rag-core/rag_core/vector_store.py` | Chroma wrapper | Persistent, in-process |
+| `rag-core/rag_core/retriever.py` | Hybrid retrieval + rerank | BM25 + semantic + RRF + cross-encoder |
+| `rag-core/rag_core/generation.py` | Grounded answer + citations | Refuses if context is empty |
+| `rag-core/rag_core/pipeline.py` | The 5-line orchestrator | retrieve → generate |
+| `rag-core/eval/metrics.py` | hit_rate, MRR, recall | Pure functions, no API |
+| `rag-core/eval/run_eval.py` | Retrieval A/B harness | semantic vs hybrid vs +rerank |
+| `rag-core/eval/ragas_eval.py` | Answer-quality eval | Faithfulness, relevancy, precision, recall |
+| `backend/app/api.py` | FastAPI app | Thin transport over `rag_core.pipeline` |
+| `backend/Dockerfile` | Production container | Installs both packages editably |
+
+## Roadmap (in progress)
+
+- **Part 1 (next)**: add `POST /upload` for runtime ingestion of `.md`/`.txt` files, and `POST /evaluate` exposing on-demand Ragas faithfulness + answer-relevancy.
+- **Part 2 (after Part 1)**: React + TypeScript frontend in `frontend/` — upload area, ask form, sources panel, and a Ragas-driven metrics dashboard.
