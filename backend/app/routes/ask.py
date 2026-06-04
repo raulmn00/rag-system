@@ -1,9 +1,11 @@
 """POST /ask — retrieve relevant passages and answer the question with citations."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from rag_core.pipeline import RAGPipeline
+
+from ..limiter import limiter
 
 
 router = APIRouter()
@@ -29,7 +31,8 @@ class AskResponse(BaseModel):
 
 
 @router.post("/ask", response_model=AskResponse)
-def ask(req: AskRequest):
+@limiter.limit("10/minute;60/hour;200/day")
+def ask(request: Request, req: AskRequest):
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="question must not be empty")
     pipeline = RAGPipeline(use_keyword=req.use_keyword, use_rerank=req.use_rerank)

@@ -3,13 +3,15 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from rag_core.embeddings import Embedder
 from rag_core.extract import SUPPORTED_EXTENSIONS
 from rag_core.ingest import ingest_file
 from rag_core.vector_store import VectorStore
+
+from ..limiter import limiter
 
 
 router = APIRouter()
@@ -65,7 +67,11 @@ def _format_extension_error(filename: str) -> str:
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload(files: list[UploadFile] = File(...)) -> UploadResponse:
+@limiter.limit("5/minute;20/hour;50/day")
+async def upload(
+    request: Request,
+    files: list[UploadFile] = File(...),
+) -> UploadResponse:
     """Receive one or more .md/.txt/.pdf files, persist them under
     data/uploads/, and ingest them into the vector store.
 

@@ -2,10 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from rag_core.evaluation import Evaluator
+
+from ..limiter import limiter
 
 
 router = APIRouter()
@@ -24,7 +26,8 @@ class EvaluateResponse(BaseModel):
 
 
 @router.post("/evaluate", response_model=EvaluateResponse)
-def evaluate(req: EvaluateRequest) -> EvaluateResponse:
+@limiter.limit("10/minute;60/hour;200/day")
+def evaluate(request: Request, req: EvaluateRequest) -> EvaluateResponse:
     """Score one (question, answer, contexts) triple with the in-tree
     LLM-judged metrics from rag_core.evaluation:
 
