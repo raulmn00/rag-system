@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# RAG System — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript SPA that drives the
+[RAG backend](../backend). Drop in `.md`/`.txt` files, ask
+questions, watch the agent retrieve passages with relevance bars,
+and — on demand — score the answer with Ragas faithfulness +
+answer-relevancy gauges.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19 + TypeScript 6** (Vite-scaffolded, `strict: true`)
+- **No UI library** — every component and animation is written by
+  hand in plain CSS. Single dark theme, teal accent, system fonts.
+- **Native `fetch`** for the three calls; no SDK on top of it.
 
-## React Compiler
+## Run
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev               # :5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dev server expects the backend on `http://localhost:8000`. Set
+`VITE_API_URL` to point at a different host (Cloud Run / Render /
+etc.) — see below.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Configuring the API URL
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The base URL comes from `VITE_API_URL` with a localhost fallback:
+
+```bash
+cp .env.example .env
+# edit .env:
+# VITE_API_URL=https://your-backend.example.com
 ```
+
+Vite reads env vars at build time. Restart `npm run dev` after
+changing them.
+
+## Build
+
+```bash
+npm run build             # tsc -b (typecheck whole tree) then vite build
+npm run preview           # serve the production build locally
+```
+
+`npm run build` fails the whole build if the TypeScript pass fails —
+no untyped code can ship. Current bundle is ~200 KB raw / ~64 KB
+gzipped JS plus ~15 KB / ~3.5 KB gzipped CSS.
+
+## Project layout
+
+```
+src/
+├── api.ts                       Typed client for /ask, /upload, /evaluate
+├── App.tsx                      State machine for the three lifecycles
+├── App.css                      Layout shell (860px max, responsive)
+├── index.css                    Design tokens (colors, radii, motion)
+├── vite-env.d.ts                Types for VITE_API_URL
+└── components/
+    ├── Spinner.tsx              Reusable loading indicator (md / sm)
+    ├── UploadArea.tsx           Drag-and-drop + click-to-select
+    ├── QuestionForm.tsx         Textarea + Ctrl/Cmd+Enter submit
+    ├── AnswerBox.tsx            Answer with preserved line breaks
+    ├── SourceList.tsx           Sources with relevance bars
+    └── MetricsPanel.tsx         Animated SVG gauges (Ragas)
+```
+
+Every component prop is explicitly typed; `any` is not used
+anywhere. The metrics panel's state is a discriminated union
+(`MetricsState`) rather than three parallel nullables — TypeScript
+forces the parent to handle every variant.
