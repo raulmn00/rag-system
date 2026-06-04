@@ -21,12 +21,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Ragas + datasets pulled in only by eval/ragas_eval.py — keeping them
-# out of the default install keeps a fresh checkout small.
-eval = [
-    "ragas>=0.2.0",
-    "datasets>=2.0.0",
-]
 dev = [
     "pytest>=8.0.0",
 ]
