@@ -1,0 +1,334 @@
+.metrics-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.5rem 1.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  animation: metrics-fade-in 0.4s var(--ease);
+}
+
+.metrics-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metrics-panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metrics-panel-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 60ch;
+}
+
+.metrics-body {
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metrics-empty {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* --- Unavailable (503) variant ---------------------------------------- */
+
+.metrics-unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.metrics-info-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-family: serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+.metrics-unavailable-title {
+  margin: 0 0 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.metrics-unavailable-detail {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* --- Error variant ----------------------------------------------------- */
+
+.metrics-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bad-bg);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius);
+}
+
+.metrics-error p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-family:
+    'SF Mono', Menlo, Monaco, 'Cascadia Code', Consolas, monospace;
+  color: var(--text);
+}
+
+.metrics-error .error-dot {
+  margin-top: 0.45rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+  flex: none;
+}
+
+/* --- Action button ----------------------------------------------------- */
+
+.metrics-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.evaluate-button {
+  appearance: none;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    border-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+
+.evaluate-button:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.evaluate-button:active {
+  transform: translateY(1px);
+}
+
+/* =======================================================================
+   Gauges
+   ======================================================================= */
+
+.gauges {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 0.5rem 0.75rem;
+  border-radius: var(--radius);
+}
+
+.gauge-arc {
+  position: relative;
+  width: 148px;
+  height: 148px;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 8;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: var(--gauge-color, var(--accent));
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition:
+    stroke-dasharray 0.9s var(--ease),
+    stroke 0.9s var(--ease);
+}
+
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 0.1rem;
+}
+
+.gauge-value {
+  font-size: 1.7rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  font-feature-settings: 'tnum';
+}
+
+.gauge-fraction {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  font-family:
+    'SF Mono', Menlo, Monaco, 'Cascadia Code', Consolas, monospace;
+  font-feature-settings: 'tnum';
+}
+
+.gauge-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.gauge-label {
+  font-weight: 500;
+}
+
+/* --- Tooltip ----------------------------------------------------------- */
+
+.gauge-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.gauge-tooltip-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: help;
+  transition:
+    color 0.15s var(--ease),
+    background 0.15s var(--ease);
+}
+
+.gauge-tooltip-trigger:hover,
+.gauge-tooltip-trigger:focus {
+  color: var(--text);
+  background: var(--accent-subtle);
+  outline: none;
+}
+
+.gauge-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s var(--ease);
+  z-index: 10;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gauge-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--surface-3);
+}
+
+.gauge-tooltip-trigger:hover + .gauge-tooltip,
+.gauge-tooltip-trigger:focus + .gauge-tooltip,
+.gauge-tooltip-wrapper:hover .gauge-tooltip {
+  opacity: 1;
+}
+
+@keyframes metrics-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .gauges {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metrics-panel,
+  .gauge-fill,
+  .gauge-tooltip {
+    animation: none;
+    transition: none;
+  }
+}
