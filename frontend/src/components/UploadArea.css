@@ -168,6 +168,60 @@
   white-space: nowrap;
 }
 
+/* --- Skipped files block ----------------------------------------------- */
+
+.upload-skipped-block {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+}
+
+.upload-skipped-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--warn);
+  margin-bottom: 0.5rem;
+}
+
+.upload-skipped-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  background: rgba(251, 191, 36, 0.18);
+  color: var(--warn);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.upload-skipped-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.upload-skipped-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.3rem 0;
+}
+
+.upload-skipped-reason {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 /* --- Error banner ------------------------------------------------------ */
 
 .upload-error {

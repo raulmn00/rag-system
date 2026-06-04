@@ -11,7 +11,8 @@ interface UploadAreaProps {
   onUpload: (files: File[]) => void;
 }
 
-const ALLOWED_EXTENSIONS = ['.md', '.txt'] as const;
+const ALLOWED_EXTENSIONS = ['.md', '.txt', '.pdf'] as const;
+const ALLOWED_LABEL = '.md, .txt e .pdf';
 
 function filterAllowed(files: FileList | null): File[] {
   if (!files) return [];
@@ -39,7 +40,7 @@ export function UploadArea({
     const allowed = filterAllowed(incoming);
     if (allowed.length === 0) {
       setLocalError(
-        'Nenhum arquivo .md ou .txt encontrado. Apenas esses tipos são aceitos.',
+        `Nenhum arquivo ${ALLOWED_LABEL} encontrado. Apenas esses tipos são aceitos.`,
       );
       return;
     }
@@ -91,7 +92,7 @@ export function UploadArea({
       <header className="upload-area-header">
         <h2 className="upload-area-title">Documentos</h2>
         <p className="upload-area-subtitle">
-          Solte arquivos para o agente indexar. Aceita .md e .txt.
+          Solte arquivos para o agente indexar. Aceita {ALLOWED_LABEL}.
         </p>
       </header>
 
@@ -118,7 +119,7 @@ export function UploadArea({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".md,.txt"
+          accept=".md,.txt,.pdf"
           onChange={handleFileInput}
           className="upload-input-hidden"
           tabIndex={-1}
@@ -135,7 +136,7 @@ export function UploadArea({
               <span className="upload-link">clique para selecionar</span>
             </p>
             <p className="upload-hint">
-              Apenas .md e .txt · múltiplos arquivos permitidos
+              Apenas {ALLOWED_LABEL} · múltiplos arquivos permitidos
             </p>
           </>
         )}
@@ -151,14 +152,38 @@ export function UploadArea({
             <strong>{result.total_chunks_in_collection}</strong> chunks na
             coleção
           </div>
-          <ul className="upload-result-list">
-            {result.files.map((f) => (
-              <li key={f.filename} className="upload-result-item">
-                <span className="upload-file-name">{f.filename}</span>
-                <span className="upload-file-chunks">+{f.chunks} chunks</span>
-              </li>
-            ))}
-          </ul>
+          {result.files.length > 0 && (
+            <ul className="upload-result-list">
+              {result.files.map((f) => (
+                <li key={f.filename} className="upload-result-item">
+                  <span className="upload-file-name">{f.filename}</span>
+                  <span className="upload-file-chunks">
+                    +{f.chunks} chunks
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {result.skipped.length > 0 && (
+            <div className="upload-skipped-block">
+              <div className="upload-skipped-header">
+                <span className="upload-skipped-icon" aria-hidden="true">
+                  !
+                </span>
+                {result.skipped.length === 1
+                  ? '1 arquivo pulado'
+                  : `${result.skipped.length} arquivos pulados`}
+              </div>
+              <ul className="upload-skipped-list">
+                {result.skipped.map((f) => (
+                  <li key={f.filename} className="upload-skipped-item">
+                    <span className="upload-file-name">{f.filename}</span>
+                    <span className="upload-skipped-reason">{f.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

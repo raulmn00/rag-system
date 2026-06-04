@@ -56,8 +56,17 @@ export interface UploadFileResult {
   chunks: number;
 }
 
+export interface SkippedFile {
+  filename: string;
+  reason: string;
+}
+
 export interface UploadResponse {
   files: UploadFileResult[];
+  /** Files the backend accepted but couldn't extract text from
+   *  (e.g. scanned/image-only PDF). They're reported here instead of
+   *  failing the whole batch — the UI shows them separately. */
+  skipped: SkippedFile[];
   total_chunks_in_collection: number;
 }
 
