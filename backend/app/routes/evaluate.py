@@ -3,7 +3,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from rag_core.evaluation import Evaluator
 
@@ -14,10 +14,14 @@ router = APIRouter()
 logger = logging.getLogger("rag-backend.evaluate")
 
 
+# Same shape the frontend gets back from /ask, with caps so a bot
+# can't burn LLM credits by sending megabyte-sized "answer" / "contexts"
+# payloads. Sized for real /ask outputs: questions are short, answers
+# fit a few paragraphs, contexts come from top-k retrieval.
 class EvaluateRequest(BaseModel):
-    question: str
-    answer: str
-    contexts: list[str]
+    question: str = Field(min_length=1, max_length=2000)
+    answer: str = Field(min_length=1, max_length=8000)
+    contexts: list[str] = Field(max_length=20)
 
 
 class EvaluateResponse(BaseModel):
