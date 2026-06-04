@@ -6,6 +6,22 @@ the RAG pipeline explicit: chunking, embeddings, hybrid retrieval,
 cross-encoder re-ranking, grounded generation, and a quantitative
 evaluation harness.
 
+## Live demo
+
+| | URL |
+|---|---|
+| **Frontend** | https://rag-system-delta-five.vercel.app |
+| **Backend API** | https://rag-system-api-909428365094.us-central1.run.app |
+| **Health check** | [`GET /`](https://rag-system-api-909428365094.us-central1.run.app/) |
+| **Repo** | https://github.com/raulmn00/rag-system |
+
+> Deployed on Vercel (frontend) + Google Cloud Run (backend, scale-to-zero).
+> Storage is ephemeral on the free tier — the vector store and uploaded
+> documents are reset whenever Cloud Run hibernates after idle. Re-upload
+> a file to ask questions about it in a fresh session.
+
+## Architecture
+
 This repo is a **monorepo** with three apps:
 
 ```
@@ -15,9 +31,9 @@ This repo is a **monorepo** with three apps:
 │                 (`rag_core`). No web framework. No HTTP.
 ├── backend/     FastAPI transport layer. Depends on rag-core via
 │                 editable install. Holds every web dependency
-│                 (fastapi, uvicorn, python-multipart) so rag-core
-│                 stays framework-agnostic.
-└── frontend/    React + TypeScript SPA (added later in development).
+│                 (fastapi, uvicorn, python-multipart, slowapi) so
+│                 rag-core stays framework-agnostic.
+└── frontend/    React + TypeScript SPA (Vite, no UI library).
 ```
 
 Separating these three lets the same domain code be consumed by
