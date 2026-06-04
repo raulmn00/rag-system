@@ -1,9 +1,11 @@
-"""POST /evaluate — reference-free Ragas evaluation of a single answer."""
+"""POST /evaluate — reference-free quality scoring of a single answer."""
 
 import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from rag_core.evaluation import Evaluator
 
 
 router = APIRouter()
@@ -23,58 +25,42 @@ class EvaluateResponse(BaseModel):
 
 @router.post("/evaluate", response_model=EvaluateResponse)
 def evaluate(req: EvaluateRequest) -> EvaluateResponse:
-    """Score one (question, answer, contexts) triple with reference-free Ragas
-    metrics:
+    """Score one (question, answer, contexts) triple with the in-tree
+    LLM-judged metrics from rag_core.evaluation:
 
-      - faithfulness: every claim in the answer is supported by the
-        retrieved contexts. The direct hallucination measure.
-      - answer_relevancy: does the answer actually address the question?
+      - faithfulness: every factual claim in the answer is supported
+        by the retrieved contexts. The direct hallucination measure.
+      - answer_relevancy: does the answer actually address the
+        question? Computed by generating K alternate questions the
+        answer would plausibly answer and averaging the cosine
+        similarity of their embeddings against the original question.
 
-    context_precision and context_recall are deliberately NOT included.
-    Both require a reference (ground-truth) answer that we don't have at
-    request time — the whole point of /evaluate is to score answers that
-    were just generated, in isolation from any gold set.
+    context_precision and context_recall (Ragas surfaces them) need a
+    ground-truth reference we don't have at request time, so they're
+    not part of this endpoint.
 
-    SLOW: each metric makes multiple LLM judge calls. Expect ~5-15s per
-    request. The caller is expected to surface this with its own loading
-    state, separate from /ask.
+    SLOW: ~3 LLM judge calls + 1 batched embeddings call. Expect
+    ~3-8s. The caller is expected to surface this with its own
+    loading state, separate from /ask.
     """
-    # Ragas is an optional extra (see rag-core/pyproject.toml [eval]).
-    # If the deploy didn't install it, surface that explicitly rather
-    # than crashing the worker.
     try:
-        from datasets import Dataset
-        from ragas import evaluate as ragas_evaluate
-        from ragas.metrics import answer_relevancy, faithfulness
-    except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Avaliador opcional não está habilitado neste deploy. "
-                "Instale com: pip install -e ./rag-core[eval]"
-            ),
-        )
-
-    dataset = Dataset.from_dict({
-        "question": [req.question],
-        "answer": [req.answer],
-        "contexts": [req.contexts],
-    })
-
-    try:
-        result = ragas_evaluate(dataset, metrics=[faithfulness, answer_relevancy])
-        # Ragas 0.2 returns a Result object with a `.to_pandas()` view.
-        df = result.to_pandas()
-        return EvaluateResponse(
-            faithfulness=float(df["faithfulness"].iloc[0]),
-            answer_relevancy=float(df["answer_relevancy"].iloc[0]),
+        evaluator = Evaluator()
+        scores = evaluator.score(
+            question=req.question,
+            answer=req.answer,
+            contexts=req.contexts,
         )
     except Exception:
-        # Anything from Ragas (LLM failure, schema drift across versions,
-        # rate limits) gets logged for ops and returned opaquely. The
-        # real exception is never echoed to the client.
-        logger.exception("Ragas evaluation failed")
+        # Anything from the evaluator (OpenAI rate limit, bad JSON from
+        # the judge, missing env var) gets logged for ops and returned
+        # opaquely. The actual exception never reaches the client.
+        logger.exception("Evaluator run failed")
         raise HTTPException(
             status_code=502,
             detail="Não foi possível avaliar a resposta. Tente novamente.",
         )
+
+    return EvaluateResponse(
+        faithfulness=scores.faithfulness,
+        answer_relevancy=scores.answer_relevancy,
+    )
