@@ -146,7 +146,7 @@ npm run build                              # tsc -b && vite build
 
 ```bash
 # Build with the REPO ROOT as the context so both packages get copied.
-docker build -f backend/Dockerfile -t rag-backend .
+docker build -t rag-backend .
 docker run --rm -p 8000:8000 --env-file .env rag-backend
 ```
 
@@ -180,6 +180,6 @@ second.
 | `backend/app/routes/ask.py` | POST /ask | Thin transport over `rag_core.pipeline` |
 | `backend/app/routes/upload.py` | POST /upload | Multipart + sanitize + reuse `ingest_file` |
 | `backend/app/routes/evaluate.py` | POST /evaluate | Wraps `rag_core.evaluation.Evaluator` |
-| `backend/Dockerfile` | Production container | Installs both packages editably |
+| `Dockerfile` (root) | Production container | Builds rag-core + backend into one image |
 | `frontend/src/App.tsx` | SPA state machine | Three independent flows (upload/ask/evaluate) |
 | `frontend/src/components/MetricsPanel.tsx` | Ragas gauges | Animated SVG arcs, color by threshold |
