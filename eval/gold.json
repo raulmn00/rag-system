@@ -1,0 +1,42 @@
+[
+  {
+    "question": "What is multi-head attention and why use several heads?",
+    "relevant_doc_ids": ["transformer"],
+    "ground_truth": "Multi-head attention runs several attention operations in parallel, each with its own learned query, key, and value projections. Using several heads lets different heads specialize in different kinds of relationships, giving the model multiple independent views of the sequence at once."
+  },
+  {
+    "question": "How does the Transformer handle the order of tokens in a sequence?",
+    "relevant_doc_ids": ["transformer"],
+    "ground_truth": "Since self-attention has no inherent notion of order, the Transformer adds positional information to the input embeddings, originally using fixed sinusoidal functions so the model can attend to relative positions."
+  },
+  {
+    "question": "Why was the Transformer more efficient to train than recurrent networks?",
+    "relevant_doc_ids": ["transformer"],
+    "ground_truth": "The Transformer processes all positions in a sequence in parallel rather than step by step, so the computation parallelizes across sequence positions, making it far more efficient to train on modern hardware than recurrent networks."
+  },
+  {
+    "question": "How are query, key and value vectors used to compute attention?",
+    "relevant_doc_ids": ["transformer"],
+    "ground_truth": "Each input is projected into a query, key, and value vector. The attention weight between two positions is the dot product of one position's query with another's key, scaled by the square root of the key dimension and passed through a softmax. The output is the weighted sum of the value vectors."
+  },
+  {
+    "question": "Why does chunk size matter when building a RAG system?",
+    "relevant_doc_ids": ["rag"],
+    "ground_truth": "Chunks that are too large dilute the embedding and waste the context window, while chunks that are too small lose the surrounding meaning needed to answer a question. A common approach is fixed-size token chunks with a small overlap."
+  },
+  {
+    "question": "What is hybrid search and how does re-ranking improve it?",
+    "relevant_doc_ids": ["rag"],
+    "ground_truth": "Hybrid search runs dense vector search and keyword search such as BM25 and fuses their rankings, combining semantic and exact-match strengths. Re-ranking then uses a cross-encoder to score each retrieved candidate against the query jointly, which is more accurate but applied only to the shortlist."
+  },
+  {
+    "question": "How do you evaluate the retrieval quality of a RAG pipeline?",
+    "relevant_doc_ids": ["rag"],
+    "ground_truth": "Retrieval quality is measured with metrics like hit rate, mean reciprocal rank, and recall at k, which check whether the right chunks were fetched. Generation quality, such as faithfulness to the context, is evaluated separately."
+  },
+  {
+    "question": "What does retrieval-augmented generation do to reduce hallucination?",
+    "relevant_doc_ids": ["rag"],
+    "ground_truth": "RAG retrieves relevant documents at query time and conditions the model's generation on them instead of relying only on learned parameters, grounding the output in specific, up-to-date sources and reducing hallucination."
+  }
+]
