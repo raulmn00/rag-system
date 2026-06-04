@@ -3,7 +3,7 @@ Ingestion: read source files -> chunk -> embed -> store.
 
 Supports .txt and .md out of the box. Run as a script:
 
-    python -m src.ingest data/docs
+    python -m rag_core.ingest data/docs
 """
 
 # Import config first so `.env` is loaded before Embedder (which reads

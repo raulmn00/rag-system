@@ -30,7 +30,7 @@ adjust.
 # Import config first so `.env` is loaded before any LLM call. Both the
 # pipeline (deferred-imported below) and Ragas's judge LLM read
 # OPENAI_API_KEY from the process environment.
-from src import config
+from rag_core import config
 config.require("OPENAI_API_KEY")
 
 import json
@@ -66,7 +66,7 @@ def build_samples(gold: list[dict], use_keyword: bool, use_rerank: bool) -> dict
     Ragas 0.2 expects these column names:
       question | answer | contexts (list[str]) | ground_truth
     """
-    from src.pipeline import RAGPipeline  # deferred: pulls in the heavy retriever
+    from rag_core.pipeline import RAGPipeline  # deferred: pulls in the heavy retriever
 
     pipeline = RAGPipeline(use_keyword=use_keyword, use_rerank=use_rerank)
 

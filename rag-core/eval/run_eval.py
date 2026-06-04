@@ -14,15 +14,15 @@ extra API calls and are the clearest demonstration of the retrieve-rerank win.
 
 # Import config first so `.env` is loaded before Embedder (which reads
 # OPENAI_API_KEY) is constructed.
-from src import config
+from rag_core import config
 config.require("OPENAI_API_KEY")
 
 import json
 from pathlib import Path
 
-from src.embeddings import Embedder
-from src.retriever import HybridRetriever
-from src.vector_store import VectorStore
+from rag_core.embeddings import Embedder
+from rag_core.retriever import HybridRetriever
+from rag_core.vector_store import VectorStore
 
 from .metrics import aggregate, hit_rate_at_k, mrr_at_k, recall_at_k
 
@@ -65,7 +65,7 @@ def main():
     gold = load_gold()
     store, embedder = VectorStore(), Embedder()
     if store.count() == 0:
-        raise SystemExit("Vector store is empty — run `python -m src.ingest` first.")
+        raise SystemExit("Vector store is empty — run `python -m rag_core.ingest` first.")
 
     rows = [evaluate_config(name, flags, gold, store, embedder)
             for name, flags in CONFIGS.items()]

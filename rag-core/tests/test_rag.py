@@ -1,7 +1,7 @@
 """Tests for the pure, no-API parts of the system."""
 
-from src.chunking import chunk_text
-from src.fusion import reciprocal_rank_fusion
+from rag_core.chunking import chunk_text
+from rag_core.fusion import reciprocal_rank_fusion
 from eval.metrics import hit_rate_at_k, mrr_at_k, recall_at_k
 
 
