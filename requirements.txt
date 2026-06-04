@@ -1,0 +1,13 @@
+openai>=1.50.0
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+rank-bm25>=0.2.2
+tiktoken>=0.7.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+pytest>=8.0.0
+# Optional extras for end-to-end answer-quality eval (eval/ragas_eval.py):
+# ragas>=0.2.0
+# datasets>=2.0.0
