@@ -23,9 +23,20 @@ from .routes import ask, evaluate, health, upload
 app = FastAPI(title="RAG System", version="1.0.0")
 app.state.limiter = limiter
 
+# Three Vercel aliases plus the per-deploy hash pattern, plus localhost for
+# dev. The wide-open allow_origins=["*"] worked while we were just testing,
+# but once the API has a public URL it lets any random site call /ask from
+# a browser and burn LLM credits on the project's key. Tightening here.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://rag-system-delta-five.vercel.app",
+        "https://rag-system-raulmn00s-projects.vercel.app",
+        "https://rag-system-raulmn00-raulmn00s-projects.vercel.app",
+    ],
+    # Per-deploy immutable URLs: rag-system-<hash>-raulmn00s-projects.vercel.app
+    allow_origin_regex=r"https://rag-system-[a-z0-9]+-raulmn00s-projects\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
