@@ -77,11 +77,17 @@ Python path.
 
 Endpoints:
 
-- `GET /` — health check.
-- `POST /ask` — `{ question, use_keyword, use_rerank, top_k }` →
+- `GET  /`         — health check.
+- `POST /ask`      — `{ question, use_keyword, use_rerank, top_k }` →
   `{ answer, sources[] }`.
+- `POST /upload`   — multipart `.md`/`.txt` files → ingest into the
+  vector store. Returns per-file chunk counts plus the collection total.
+- `POST /evaluate` — reference-free Ragas scoring of a single
+  `{ question, answer, contexts }`. Returns `{ faithfulness,
+  answer_relevancy }`. Requires the `rag-core[eval]` extra; without
+  it the route returns 503.
 
-### Evaluation
+### Evaluation (offline harness)
 
 ```bash
 cd rag-core
@@ -91,8 +97,21 @@ python -m eval.ragas_eval                 # LLM-judged answer quality (needs `ev
 
 ### Frontend
 
-Added in a later step. Will live in `frontend/` as a Vite + React + TS
-project. Will read `VITE_API_URL` for the backend's base URL.
+```bash
+cd frontend
+npm install
+npm run dev                                # :5173
+```
+
+Vite + React 19 + TypeScript (strict). Single page wired with three
+flows: drag-and-drop upload, ask with citations, and a Ragas metrics
+panel (animated SVG gauges). Reads the backend URL from
+`VITE_API_URL` — see `frontend/.env.example`.
+
+```bash
+cd frontend
+npm run build                              # tsc -b && vite build
+```
 
 ### Container (backend only)
 
@@ -125,10 +144,10 @@ no model downloads, no network. Run in well under a second.
 | `rag-core/eval/metrics.py` | hit_rate, MRR, recall | Pure functions, no API |
 | `rag-core/eval/run_eval.py` | Retrieval A/B harness | semantic vs hybrid vs +rerank |
 | `rag-core/eval/ragas_eval.py` | Answer-quality eval | Faithfulness, relevancy, precision, recall |
-| `backend/app/api.py` | FastAPI app | Thin transport over `rag_core.pipeline` |
+| `backend/app/api.py` | FastAPI app entry | Wires CORS + the per-route routers |
+| `backend/app/routes/ask.py` | POST /ask | Thin transport over `rag_core.pipeline` |
+| `backend/app/routes/upload.py` | POST /upload | Multipart + sanitize + reuse `ingest_file` |
+| `backend/app/routes/evaluate.py` | POST /evaluate | Ragas faithfulness + answer relevancy |
 | `backend/Dockerfile` | Production container | Installs both packages editably |
-
-## Roadmap (in progress)
-
-- **Part 1 (next)**: add `POST /upload` for runtime ingestion of `.md`/`.txt` files, and `POST /evaluate` exposing on-demand Ragas faithfulness + answer-relevancy.
-- **Part 2 (after Part 1)**: React + TypeScript frontend in `frontend/` — upload area, ask form, sources panel, and a Ragas-driven metrics dashboard.
+| `frontend/src/App.tsx` | SPA state machine | Three independent flows (upload/ask/evaluate) |
+| `frontend/src/components/MetricsPanel.tsx` | Ragas gauges | Animated SVG arcs, color by threshold |
