@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from rag_core.chunking import chunk_text
+from rag_core.evaluation import Evaluator, _cosine_similarity
 from rag_core.extract import (
     SUPPORTED_EXTENSIONS,
     clean_whitespace,
@@ -146,3 +147,132 @@ def test_supported_extensions_matches_dispatch():
     # /upload, CLI directory walker) rely on. Sanity-check it lists
     # exactly what the dispatch knows how to handle.
     assert SUPPORTED_EXTENSIONS == frozenset({".md", ".txt", ".pdf"})
+
+
+# --- cosine similarity ----------------------------------------------------
+
+def test_cosine_similarity_identical_vectors_is_one():
+    v = [1.0, 0.5, -0.25, 3.0]
+    assert _cosine_similarity(v, v) == pytest.approx(1.0)
+
+
+def test_cosine_similarity_orthogonal_is_zero():
+    a = [1.0, 0.0, 0.0]
+    b = [0.0, 1.0, 0.0]
+    assert _cosine_similarity(a, b) == pytest.approx(0.0)
+
+
+def test_cosine_similarity_handles_zero_vector_without_division_error():
+    # A zero vector has zero norm — return 0 instead of dividing by zero.
+    assert _cosine_similarity([0.0, 0.0, 0.0], [1.0, 2.0, 3.0]) == 0.0
+
+
+def test_cosine_similarity_handles_mismatched_lengths():
+    # Defensive: caller bug, but we degrade to 0 instead of raising.
+    assert _cosine_similarity([1.0, 2.0], [1.0, 2.0, 3.0]) == 0.0
+
+
+# --- Evaluator: faithfulness ---------------------------------------------
+#
+# The tests below stub the network-bound helpers (_chat_json, _embed)
+# so we exercise the math + branching without any API calls.
+
+class _FakeEvaluator(Evaluator):
+    """Evaluator with the OpenAI client never constructed. Subclasses set
+    up canned responses for the LLM/embedding calls via monkeypatch."""
+    def __init__(self) -> None:
+        # Skip parent __init__ entirely — we never touch self.client.
+        self.judge_model = "stub"
+        self.embedding_model = "stub"
+
+
+def test_faithfulness_returns_zero_for_empty_answer():
+    e = _FakeEvaluator()
+    assert e.faithfulness("", ["some context"]) == 0.0
+    assert e.faithfulness("   ", ["some context"]) == 0.0
+
+
+def test_faithfulness_returns_one_when_answer_has_no_claims(monkeypatch):
+    # Refusal-style answers extract to an empty claim list. By convention
+    # that's "vacuously faithful" (1.0) — the answer didn't hallucinate
+    # because it didn't claim anything.
+    e = _FakeEvaluator()
+    monkeypatch.setattr(e, "_extract_claims", lambda answer: [])
+    assert e.faithfulness("I don't have enough info.", ["ctx"]) == 1.0
+
+
+def test_faithfulness_returns_zero_when_contexts_empty(monkeypatch):
+    e = _FakeEvaluator()
+    monkeypatch.setattr(e, "_extract_claims", lambda answer: ["claim 1", "claim 2"])
+    assert e.faithfulness("answer with claims", []) == 0.0
+
+
+def test_faithfulness_scores_supported_over_total(monkeypatch):
+    e = _FakeEvaluator()
+    monkeypatch.setattr(
+        e,
+        "_extract_claims",
+        lambda answer: ["c1", "c2", "c3", "c4"],
+    )
+    monkeypatch.setattr(
+        e,
+        "_judge_claims",
+        lambda claims, contexts: [True, True, False, True],
+    )
+    # 3 out of 4 supported.
+    assert e.faithfulness("answer", ["ctx"]) == pytest.approx(3 / 4)
+
+
+# --- Evaluator: answer_relevancy ----------------------------------------
+
+def test_answer_relevancy_returns_zero_for_empty_inputs():
+    e = _FakeEvaluator()
+    assert e.answer_relevancy("", "answer") == 0.0
+    assert e.answer_relevancy("question", "") == 0.0
+
+
+def test_answer_relevancy_returns_zero_when_no_questions_generated(monkeypatch):
+    e = _FakeEvaluator()
+    monkeypatch.setattr(e, "_generate_alt_questions", lambda answer, k: [])
+    assert e.answer_relevancy("q", "a") == 0.0
+
+
+def test_answer_relevancy_averages_cosine_sim_of_generated_questions(monkeypatch):
+    """With three generated questions whose embeddings have known
+    similarities to the original (1.0, 0.5, 0.0), the score should be
+    the arithmetic mean (~0.5)."""
+    e = _FakeEvaluator()
+
+    monkeypatch.setattr(
+        e,
+        "_generate_alt_questions",
+        lambda answer, k: ["alt1", "alt2", "alt3"],
+    )
+
+    # Returns [original, gen1, gen2, gen3] embeddings.
+    # Construct simple orthogonal-ish vectors so the cosine sims hit
+    # specific values: identical to original (1.0), 45° (~0.707), 90° (0.0).
+    orig = [1.0, 0.0]
+    same = [1.0, 0.0]
+    forty_five = [1.0, 1.0]
+    perpendicular = [0.0, 1.0]
+    monkeypatch.setattr(
+        e,
+        "_embed",
+        lambda texts: [orig, same, forty_five, perpendicular],
+    )
+
+    score = e.answer_relevancy("question", "answer")
+    expected_mean = (1.0 + 2 ** -0.5 + 0.0) / 3
+    assert score == pytest.approx(expected_mean, abs=1e-6)
+
+
+def test_answer_relevancy_clamps_into_unit_interval(monkeypatch):
+    """Cosine sim is technically in [-1, 1]. The metric output must
+    stay in [0, 1] — we clamp."""
+    e = _FakeEvaluator()
+    monkeypatch.setattr(e, "_generate_alt_questions", lambda answer, k: ["alt"])
+    # An "opposite" vector → cosine sim = -1
+    monkeypatch.setattr(e, "_embed", lambda texts: [[1.0, 0.0], [-1.0, 0.0]])
+    score = e.answer_relevancy("q", "a")
+    assert score == 0.0  # clamped from -1
