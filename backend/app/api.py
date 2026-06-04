@@ -5,16 +5,19 @@ FastAPI wrapper for the RAG pipeline.
   POST /ask       — { "question": "...", "use_rerank": true } -> answer + sources
 """
 
-# Import config first so `.env` is loaded before any module below tries
-# to read `OPENAI_API_KEY` from the process environment.
-from . import config
+# Import rag_core.config first so `.env` is loaded before any module
+# below tries to read `OPENAI_API_KEY` from the process environment.
+# rag_core is installed editably (see backend/pyproject.toml); the
+# backend depends on it as a domain library and stays as a thin
+# transport layer over its pipeline.
+from rag_core import config
 config.require("OPENAI_API_KEY")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .pipeline import RAGPipeline
+from rag_core.pipeline import RAGPipeline
 
 app = FastAPI(title="RAG System", version="1.0.0")
 app.add_middleware(
