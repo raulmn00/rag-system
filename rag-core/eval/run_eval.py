@@ -7,9 +7,10 @@ Loads eval/gold.json (a small hand-labeled set of question -> relevant chunk
 ids), runs three retriever configs over it, and prints a comparison table. This
 is what produces the before/after numbers for your README.
 
-For end-to-end answer quality (faithfulness, answer relevancy) you can layer
-Ragas on top — see eval/ragas_eval.py — but the retrieval metrics below need no
-extra API calls and are the clearest demonstration of the retrieve-rerank win.
+For end-to-end answer quality (faithfulness, answer relevancy) see
+eval/quality_eval.py — that runs the LLM-judged metrics from
+rag_core.evaluation. The retrieval metrics below need no extra API
+calls and are the clearest demonstration of the retrieve-rerank win.
 """
 
 # Import config first so `.env` is loaded before Embedder (which reads

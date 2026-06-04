@@ -3,8 +3,9 @@
 A React + TypeScript SPA that drives the
 [RAG backend](../backend). Drop in `.md`/`.txt` files, ask
 questions, watch the agent retrieve passages with relevance bars,
-and — on demand — score the answer with Ragas faithfulness +
-answer-relevancy gauges.
+and — on demand — score the answer with LLM-judged faithfulness +
+answer-relevancy gauges (computed by the backend's in-tree
+Evaluator).
 
 ## Stack
 

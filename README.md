@@ -82,18 +82,46 @@ Endpoints:
   `{ answer, sources[] }`.
 - `POST /upload`   — multipart `.md`/`.txt` files → ingest into the
   vector store. Returns per-file chunk counts plus the collection total.
-- `POST /evaluate` — reference-free Ragas scoring of a single
+- `POST /evaluate` — reference-free quality scoring of a single
   `{ question, answer, contexts }`. Returns `{ faithfulness,
-  answer_relevancy }`. Requires the `rag-core[eval]` extra; without
-  it the route returns 503.
+  answer_relevancy }`. Implemented in-tree (no Ragas / no extras
+  required) — see `rag-core/rag_core/evaluation.py` and "Evaluation
+  metrics" below.
 
 ### Evaluation (offline harness)
 
 ```bash
 cd rag-core
-python -m eval.run_eval                   # retrieval metrics, no extra cost
-python -m eval.ragas_eval                 # LLM-judged answer quality (needs `eval` extra)
+python -m eval.run_eval                   # retrieval metrics, no API cost
+python -m eval.quality_eval               # LLM-judged answer quality
 ```
+
+`run_eval.py` measures **retrieval** quality (Hit Rate@k, MRR@k,
+Recall@k — pure functions, no LLM cost). `quality_eval.py` measures
+**answer** quality using the same Evaluator the backend's
+`/evaluate` route uses.
+
+### Evaluation metrics — how they work
+
+Two LLM-judged metrics, both implemented in-tree against the OpenAI
+SDK (no Ragas, no third-party eval framework). See
+[`rag-core/rag_core/evaluation.py`](rag-core/rag_core/evaluation.py)
+for the prompts and the math; unit-tested in
+[`rag-core/tests/test_rag.py`](rag-core/tests/test_rag.py) with the
+OpenAI client mocked out.
+
+| Metric | What it measures | Implementation |
+|---|---|---|
+| `faithfulness` | Every factual claim in the answer is supported by the retrieved contexts (anti-hallucination) | 1) LLM extracts atomic claims from the answer. 2) LLM judges each claim against the contexts in a batched call. Score = supported / total. |
+| `answer_relevancy` | The answer actually addresses the question that was asked | 1) LLM generates K=4 questions the answer plausibly answers. 2) Cosine similarity between the embedding of each generated question and the embedding of the original question. Score = mean, clamped to [0, 1]. |
+
+Cost per `/evaluate` call: ~3 LLM judge calls + 1 batched embeddings
+call on `gpt-4o-mini` + `text-embedding-3-small` ≈ **$0.0005**.
+Latency: 3–8 seconds.
+
+`context_precision` and `context_recall` (which Ragas surfaces) are
+deliberately not included — both need a ground-truth reference, which
+isn't available at request time.
 
 ### Frontend
 
@@ -104,9 +132,10 @@ npm run dev                                # :5173
 ```
 
 Vite + React 19 + TypeScript (strict). Single page wired with three
-flows: drag-and-drop upload, ask with citations, and a Ragas metrics
-panel (animated SVG gauges). Reads the backend URL from
-`VITE_API_URL` — see `frontend/.env.example`.
+flows: drag-and-drop upload, ask with citations, and an LLM-judged
+metrics panel (animated SVG gauges driven by the in-tree evaluator).
+Reads the backend URL from `VITE_API_URL` — see
+`frontend/.env.example`.
 
 ```bash
 cd frontend
@@ -128,8 +157,10 @@ cd rag-core
 pytest tests/ -v
 ```
 
-Tests cover the pure parts (chunking, fusion, metrics) — no API key,
-no model downloads, no network. Run in well under a second.
+Tests cover the pure parts (chunking, fusion, retrieval metrics) plus
+the LLM-judged evaluator (with the OpenAI client mocked out) — no API
+key, no model downloads, no network. 31 tests, all in well under a
+second.
 
 ## What lives where, briefly
 
@@ -141,13 +172,14 @@ no model downloads, no network. Run in well under a second.
 | `rag-core/rag_core/retriever.py` | Hybrid retrieval + rerank | BM25 + semantic + RRF + cross-encoder |
 | `rag-core/rag_core/generation.py` | Grounded answer + citations | Refuses if context is empty |
 | `rag-core/rag_core/pipeline.py` | The 5-line orchestrator | retrieve → generate |
+| `rag-core/rag_core/evaluation.py` | LLM-judged Evaluator | Self-contained faithfulness + answer relevancy |
 | `rag-core/eval/metrics.py` | hit_rate, MRR, recall | Pure functions, no API |
 | `rag-core/eval/run_eval.py` | Retrieval A/B harness | semantic vs hybrid vs +rerank |
-| `rag-core/eval/ragas_eval.py` | Answer-quality eval | Faithfulness, relevancy, precision, recall |
+| `rag-core/eval/quality_eval.py` | Offline answer-quality harness | Loops the Evaluator over the gold set |
 | `backend/app/api.py` | FastAPI app entry | Wires CORS + the per-route routers |
 | `backend/app/routes/ask.py` | POST /ask | Thin transport over `rag_core.pipeline` |
 | `backend/app/routes/upload.py` | POST /upload | Multipart + sanitize + reuse `ingest_file` |
-| `backend/app/routes/evaluate.py` | POST /evaluate | Ragas faithfulness + answer relevancy |
+| `backend/app/routes/evaluate.py` | POST /evaluate | Wraps `rag_core.evaluation.Evaluator` |
 | `backend/Dockerfile` | Production container | Installs both packages editably |
 | `frontend/src/App.tsx` | SPA state machine | Three independent flows (upload/ask/evaluate) |
 | `frontend/src/components/MetricsPanel.tsx` | Ragas gauges | Animated SVG arcs, color by threshold |
